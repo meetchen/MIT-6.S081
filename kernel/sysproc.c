@@ -106,6 +106,9 @@ sys_trace(void)
   {
     return -1;
   }
+
+  // 标志进程所跟踪的系统调用
+  myproc()->trace_syscall = sys_call_id;
   
   return 0;
 }

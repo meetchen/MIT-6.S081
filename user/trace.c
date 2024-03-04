@@ -14,14 +14,9 @@ int main(int argc, char *argv[])
 
     int mask = atoi(argv[1]);
 
-    // 获取需要跟踪的系统调用
-    int trace_id = 1;
-    while ((mask >>= 1) != 1)
-    {
-        trace_id++;
-    }
+    trace(mask);
 
-    trace(trace_id);
+    exec(argv[2], argv + 2);
 
     exit(0);
 }

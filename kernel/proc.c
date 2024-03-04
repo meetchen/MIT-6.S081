@@ -278,6 +278,8 @@ fork(void)
 
   np->parent = p;
 
+  np->trace_syscall = p->trace_syscall;
+
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
