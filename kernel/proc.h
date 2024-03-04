@@ -82,7 +82,7 @@ struct trapframe {
 
 enum procstate { UNUSED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
-// Per-process state
+// Per-process state 每个进程维护许多状态片段
 struct proc {
   struct spinlock lock;
 
@@ -93,6 +93,8 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
+
+  int trace_syscall;           // If non-zero,trace to the syscall with id
 
   // these are private to the process, so p->lock need not be held.
   uint64 kstack;               // Virtual address of kernel stack

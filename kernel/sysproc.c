@@ -29,6 +29,7 @@ sys_fork(void)
   return fork();
 }
 
+
 uint64
 sys_wait(void)
 {
@@ -94,4 +95,20 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+
+uint64
+sys_trace(void)
+{
+  int sys_call_id = 0;
+  if (argint(0, &sys_call_id) < 0)
+  {
+    return -1;
+  }
+
+  // 标志进程所跟踪的系统调用
+  myproc()->trace_syscall = sys_call_id;
+  
+  return 0;
 }
