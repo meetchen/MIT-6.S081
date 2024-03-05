@@ -80,3 +80,20 @@ kalloc(void)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
+
+// return the unused memory with bytes count
+int 
+membytes(void)
+{
+  int cnt = 0;
+  struct run *r;
+  acquire(&kmem.lock);
+  r = kmem.freelist;
+  while (r)
+  {
+    cnt++;
+    r = r->next;
+  }
+  release(&kmem.lock);
+  return cnt * PGSIZE;
+}
