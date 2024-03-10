@@ -34,12 +34,12 @@ procinit(void)
       // Allocate a page for the process's kernel stack.
       // Map it high in memory, followed by an invalid
       // guard page.
-      char *pa = kalloc();
-      if(pa == 0)
-        panic("kalloc");
-      uint64 va = KSTACK((int) (p - proc));
-      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-      p->kstack = va;
+      // char *pa = kalloc();
+      // if(pa == 0)
+      //   panic("kalloc");
+      // uint64 va = KSTACK((int) (p - proc));
+      // kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+      // p->kstack = va;
   }
   kvminithart();
 }
@@ -121,6 +121,16 @@ found:
     return 0;
   }
 
+  p->kpagetable = kpt_init();
+
+  char *pa = kalloc();
+  if(pa == 0)
+    panic("kalloc");
+  uint64 va = KSTACK((int) (p - proc));
+  if (mappages(p->kpagetable, va, PGSIZE, (uint64)pa, PTE_R | PTE_W))
+    panic("mapper kstack error\n");
+  p->kstack = va;
+
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
@@ -139,9 +149,19 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
+
+  // printf("uvmunmap kpt : %p,  kstck: %p \n", p->kpagetable, p->kstack);
+  uvmunmap(p->kpagetable, p->kstack, 1, 1);
+  p->kstack = 0;
+
+  if(p->kpagetable)
+    kpt_free(p->kpagetable);
+  p->kpagetable = 0;
+
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -473,10 +493,12 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+        kpt_inithart(p->kpagetable);
         swtch(&c->context, &p->context);
-
         // Process is done running for now.
         // It should have changed its p->state before coming back.
+        kvminithart();
+
         c->proc = 0;
 
         found = 1;
@@ -486,6 +508,7 @@ scheduler(void)
 #if !defined (LAB_FS)
     if(found == 0) {
       intr_on();
+      kvminithart();
       asm volatile("wfi");
     }
 #else

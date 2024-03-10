@@ -5,6 +5,9 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "spinlock.h"
+#include "proc.h"
+
 
 /*
  * the kernel's page table.
@@ -55,6 +58,14 @@ kvminithart()
   w_satp(MAKE_SATP(kernel_pagetable));
   sfence_vma();
 }
+
+void 
+kpt_inithart(pagetable_t kpt)
+{
+  w_satp(MAKE_SATP(kpt));
+  sfence_vma();
+}
+
 
 // Return the address of the PTE in page table pagetable
 // that corresponds to virtual address va.  If alloc!=0,
@@ -132,7 +143,7 @@ kvmpa(uint64 va)
   pte_t *pte;
   uint64 pa;
   
-  pte = walk(kernel_pagetable, va, 0);
+  pte = walk(myproc()->kpagetable, va, 0);
   if(pte == 0)
     panic("kvmpa");
   if((*pte & PTE_V) == 0)
@@ -439,4 +450,78 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+
+void 
+vmprint(pagetable_t pagetable)
+{
+  printf("page table %p\n", pagetable);
+  for (int i = 0; i < 512; i++)
+  {
+    pte_t level2 = pagetable[i];
+    if ((level2 & PTE_V) && (level2 & (PTE_R | PTE_X | PTE_W)) == 0)
+    {
+      printf("..%d: pte %p pa %p\n", i, level2, PTE2PA(level2));
+      pagetable_t child = (pagetable_t)PTE2PA(level2);
+      for (int j = 0; j < 512; j++)
+      {
+        pte_t level1 = child[j];
+        if ((level1 & PTE_V) && (level1 & (PTE_R | PTE_X | PTE_W)) == 0)
+        {
+          printf(".. ..%d: pte %p pa %p\n", j, level1, PTE2PA(level1));
+          pagetable_t temp = (pagetable_t)PTE2PA(level1);
+          for (int k = 0; k < 512; k++)
+          {
+            pte_t level0 = temp[k];
+            if (level0 & PTE_V)
+            {
+              printf(".. .. ..%d: pte %p pa %p\n", k, level0, PTE2PA(level0));
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+pagetable_t 
+kpt_init()
+{
+  pagetable_t kpt = (pagetable_t)kalloc();
+  memset(kpt, 0, PGSIZE);
+
+  mappages(kpt, UART0, PGSIZE, UART0, PTE_R | PTE_W);
+
+  mappages(kpt, VIRTIO0, PGSIZE, VIRTIO0, PTE_R | PTE_W);
+
+  mappages(kpt, PLIC, 0x400000, PLIC, PTE_R | PTE_W);
+
+  mappages(kpt, KERNBASE, (uint64)etext - KERNBASE, KERNBASE, PTE_R | PTE_X);
+
+  mappages(kpt, (uint64)etext, PHYSTOP - (uint64)etext, (uint64)etext, PTE_R | PTE_W);
+
+  mappages(kpt, TRAMPOLINE, PGSIZE, (uint64)trampoline, PTE_R | PTE_X);
+
+  return kpt;
+}
+
+void 
+kpt_free(pagetable_t kpt)
+{
+  for (int i = 0; i < 512; i++)
+  {
+    pte_t pte = kpt[i];
+    if (pte & PTE_V)
+    {
+      kpt[i] = 0;
+      // 递归终止条件，最后一层是有权限的
+      if ((pte & (PTE_R | PTE_W | PTE_X)) == 0)
+      {
+        pagetable_t chil = (pagetable_t)PTE2PA(pte);
+        kpt_free(chil);
+      }
+    }
+  }
+  kfree((void *)kpt);
 }
