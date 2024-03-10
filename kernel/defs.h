@@ -182,6 +182,7 @@ void            vmprint(pagetable_t pagetable);
 pagetable_t     kpt_init();
 void            kpt_free(pagetable_t kpt);
 void            kpt_inithart(pagetable_t kpt);
+void            kpt_copy(pagetable_t src, pagetable_t dst, uint64 begin, uint64 end);
 
 
 
@@ -199,7 +200,9 @@ void            virtio_disk_intr(void);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 
-
+// vmcopyin.c
+int             copyin_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len);
+int             copyinstr_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max);
 
 // stats.c
 void            statsinit(void);
@@ -229,3 +232,4 @@ int             sockread(struct sock *, uint64, int);
 int             sockwrite(struct sock *, uint64, int);
 void            sockrecvudp(struct mbuf*, uint32, uint16, uint16);
 #endif
+
