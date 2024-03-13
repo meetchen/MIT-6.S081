@@ -113,6 +113,11 @@ found:
     return 0;
   }
 
+  p->trapframe_bak = 0;
+  p->alarm_cnt = 0;
+  p->alarm_handler = 0;
+  p->alarm_interval = 0;
+
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
@@ -141,6 +146,12 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+
+  p->trapframe_bak = 0;
+  p->alarm_cnt = 0;
+  p->alarm_handler = 0;
+  p->alarm_interval = 0;
+
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
