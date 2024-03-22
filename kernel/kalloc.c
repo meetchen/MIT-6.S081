@@ -59,6 +59,7 @@ kfree(void *pa)
     panic("kfree");
 
   // Fill with junk to catch dangling refs.
+  // 检测引用计数，当为0时，才进行实际的内存释放
   acquire(&ref.lock);
   if (ref.cnt[(uint64)pa/PGSIZE] > 1)
   {
@@ -89,6 +90,7 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
+  // 分配内存时，也进行引用计数的记录
   if(r)
   {
     acquire(&ref.lock);

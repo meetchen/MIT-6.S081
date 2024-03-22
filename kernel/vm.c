@@ -325,12 +325,15 @@ int uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if ((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
+    // 只处理有写权限的页表项
     if (*pte & PTE_W)
     {
+      // 添加cow标志， 去除写权限
       *pte |= PTE_C;
       *pte &= ~PTE_W;
     }
     flags = PTE_FLAGS(*pte);
+    // 完成对同一个物理内存的映射
     if (mappages(new, i, PGSIZE, (uint64)pa, flags) != 0)
     {
       goto err;
@@ -464,7 +467,7 @@ int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 
 
 /***
- * @brief 检测是cow页面，并且对于cow页面，进行正式物理地址的分配
+ * @brief 对一个va地址，进行一个cow处理，
  * @return -1: 非cow页面，或者其他错误， 0表示分配成功，
  * 
 */
